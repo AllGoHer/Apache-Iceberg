@@ -660,122 +660,445 @@ Código:
             (8, TIMESTAMP '2026-11-20 01:54:55', 'purchanse', 102),
             (9, TIMESTAMP '2026-11-20 02:02:14', 'logout', 101)""")
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/da51df4c-6b7f-488e-b379-db59e5f8a187)
 
-  ![image]()
+ Verificamos en la carpeta partition_demo/data  
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/144d5437-efd4-4f32-af5a-074a3a8f2881)
 
-  ![image]()
+* Crear la tabla inicial Iceberg 
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Create the initial Iceberg table
+            
+             spark.sql("""
+             CREATE OR REPLACE TABLE local.demo.mutations_demo(
+             id INT,
+             name STRING,
+             country STRING
+             )
+             USING iceberg
+             """)
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/6c7ecce5-4d75-465d-9ab0-f095905f95f3)
 
-  ![image]()
+* Insertar datos a la tabla
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Insert the initial records
+            
+             spark.sql("""
+             INSERT INTO local.demo.mutations_demo Values
+             (1, 'Allan', 'Peru'),
+             (2, 'Martin', 'Argentina'),
+             (3, 'Karla', 'Bolivia')
+             """)
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/012d4dad-3d1c-4069-9a75-87cc5ec9ec14)
 
-  ![image]()
+* Crea una segunda tabla Iceberg a partir de la original
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Create a second Iceberg Table from the original
+            
+             spark.sql("""
+             CREATE OR REPLACE TABLE local.demo.mutations_demo_mor
+             USING iceberg
+             AS
+             SELECT *
+             FROM local.demo.mutations_demo
+             """)
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/9b3bfbfd-32f1-45ee-a4bd-4bc885334ca7)
+  
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/df735889-ceba-4059-8f00-551cc2cac038)
 
-  ![image]()
+* Actualizar un registro en la tabla original
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Update a record in the original table
+            
+             spark.sql("""
+             UPDATE local.demo.mutations_demo
+             SET country = 'Peru'
+             WHERE id = 2
+             """)
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/931dd091-b023-49e5-9bca-93837ea105db)
 
-  ![image]()
+* Consultar a la tabla para verificar la actualización.
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Query the table to verify the update
+            
+             spark.sql("""
+             SELECT *
+             FROM local.demo.mutations_demo
+             ORDER BY id
+             """).show()
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/cb64617b-a91b-4cb8-9017-e2b9ddbfa008)
 
-  ![image]()
+* Eliminar un registro de la tabla original
 
-  ![image]()
+Código:
 
-  ![image]()
+            # DELETE A RECORD FROM THE ORIGINAL TABLE
+            
+             spark.sql("""
+             DELETE FROM local.demo.mutations_demo
+             WHERE id = 3
+             """)
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/69ba2b54-d266-4697-9fdf-4494fea34024)
 
-  ![image]()
+* Inspección la tabla instantánea (snapshot) y sus operaciones. 
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Inspect the table snapshot and their operations
+            
+             spark.sql("""
+             SELECT
+             snapshot_id,
+             committed_at,
+             operation
+             FROM local.demo.mutations_demo.snapshots
+             ORDER BY committed_at
+             """).show(truncate=False)
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/0c4acfb9-1e0c-46f1-aef3-27e0c7592edb)
 
-  ![image]()
+* Configura la segunda tabla para que utilice merge-on-read para el formato
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Configure the second table to use merge-on-read for format
+            
+             spark.sql("""
+             ALTER TABLE local.demo.mutations_demo_mor
+             SET TBLPROPERTIES (
+                 'write.delete.mode'='merge-on-read'
+             )
+             """)
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/32892ca3-cedd-4863-bcc8-9182b6be1aac)
 
-  ![image]()
+* Actualizar un registro utilizando la tabla de fusión al leer
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Update a record using the merge-on-read table
+            
+             spark.sql("""
+             UPDATE local.demo.mutations_demo_mor
+             SET country = 'Peru'
+             WHERE id = 2
+             """)
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/ee9abf99-d437-4a49-beb1-4d853047a6fa)
 
-  ![image]()
+* Borrar un registro usando la tabla de fusión al leer.
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Delete a record using the merge-on read table
+            
+             spark.sql("""
+             DELETE FROM local.demo.mutations_demo_mor
+             WHERE id = 3
+             """)
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/8ae6c970-fa54-4fce-8fc9-a2ecbb1c212f)
 
-  ![image]()
+* Revisar los archivos de eliminación generados por la tabla
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Inspect the delete files generated by the table
+            
+             spark.sql("""
+             SELECT *
+             FROM local.demo.mutations_demo.delete_files
+             """).show(truncate=False)
 
-  ![image]()
 
-  ![image]()
 
-  ![image]()
+  ![image](https://github.com/user-attachments/assets/f054a84a-6f5b-486e-ba6b-d140ee4ef242)
 
-  ![image]()
+Como vemos no hay archivos dentro de la tabla para eliminar
 
-  ![image]()
+* Inspección de la posición de los archivos borrados generados por la tabla de fusión al leer.
 
-  ![image]()
+Código:
 
-  ![image]()
+            # Inspect position delete files generated by the merge-on -read table
+            
+             spark.sql("""
+             SELECT *
+             FROM local.demo.mutations_demo_mor.position_deletes
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/751e90e0-0e63-4e7d-8bdd-4964571bdf76)
+
+* Inspeccionar las instantáneas de la tabla antes de la expiración 
+
+Código:
+
+            # Inspect the table snapshots before expiration
+            
+             spark.sql("""
+             SELECT
+                 snapshot_id,
+                 committed_at,
+                 operation
+             FROM local.demo.mutations_demo_mor.snapshots
+             ORDER BY committed_at
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/1a9f121b-c161-40ab-9cc8-34c1fd2f9b36)
+
+*  Eliminar instantáneas más antiguas que la marca de tiempo especificada
+
+Código:
+
+            # Expire snapshots older than the specified tiemstamp
+             spark.sql("""
+             CALL local.system.expire_snapshots(
+                 table => 'demo.mutations_demo_mor',
+                 older_than => TIMESTAMP '2026-11-20 05:34:25.587'
+             )
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/f57fa0c6-c218-45ac-b75a-f3ae1e47ee05)
+
+* Revisa las instantáneas restantes después de su vencimiento
+
+Código:
+
+            # Inspect the remaining snapshots after expiration
+             spark.sql("""
+             SELECT
+                 snapshot_id,
+                 committed_at,
+                 operation
+             FROM local.demo.mutations_demo_mor.snapshots
+             ORDER BY committed_at
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/d4e30a64-6cc9-489b-9f9b-0f3331221dc5)
+
+* Reescritura de manifiestos
+
+Código:
+
+            # Re-Writing manifests
+             spark.sql("""
+             CALL local.system.rewrite_manifests(
+                 'demo.mutations_demo'
+             )""")
+
+
+  ![image](https://github.com/user-attachments/assets/81871ca1-948f-4392-8720-3c73924dc562)
+
+* Crear datos huérfanos 
+
+Para ello abrimos otra terminal powershell e ingresamos el siguiente código. 
+
+Código:
+
+            docker exec -it iceberg-spark-worker bash
+            luego el siguiente código, pero reemplazando <ACTUAL_PARQUET_FILE> por el ultimo archivo creado en la carpeta mutation_demo/data.
+            
+            Código:
+            cp /opt/iceberg/warehouse/demo/mutations_demo/data/<ACTUAL_PARQUET_FILE>.parquet \
+               /opt/iceberg/warehouse/demo/mutations_demo/data/orphan-demo.parquet && \
+            touch -d "2025-09-20 00:00:00" \
+               /opt/iceberg/warehouse/demo/mutations_demo/data/orphan-demo.parquet
+
+
+  ![image](https://github.com/user-attachments/assets/4be46ff5-0c70-4b87-ba25-41b6e0511166)
+
+* Inspeccionar la tabla instantánea actual
+
+Código:
+
+            # Inspect the current table snapshots
+            
+             spark.sql("""
+             SELECT
+                 snapshot_id,
+                 committed_at,
+                 operation
+             FROM local.demo.customers.snapshots
+             ORDER BY committed_at
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/a3ff2929-4e7f-4cf4-bae2-bcce6d47de6b)
+
+* Crear una Rama (branch) desde una instantánea especifica.
+
+Código:
+
+            # Create a branch from a specific snapshots
+             spark.sql("""
+             ALTER TABLE local.demo.customers
+             CREATE BRANCH test_branch
+             AS OF VERSION 3571994297089221451
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/98c83884-1ac2-4211-954d-bedf2691f54b)
+
+* Consulta la tabla a través de la rama de prueba
+
+Código:
+
+            # Query the table through the test branch
+             spark.sql("""
+             SELECT *
+             FROM local.demo.customers.branch_test_branch
+             """).show(truncate=False)
+
+  ![image](https://github.com/user-attachments/assets/d283e1db-8b53-4bbc-a179-9672a39e1062)
+
+* Borrar un registro desde la rama test
+
+Código:
+
+            # Delete a record from the test branch
+             spark.sql("""
+             DELETE FROM local.demo.customers.branch_test_branch
+             WHERE customer_id = 3
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/bbc394b9-265e-4367-904b-a91c9adaa114)
+
+* Verificar la instantánea después de la modificación de la rama.
+
+Código:
+
+            # Inspect snapshots after modifying the branch
+            
+             spark.sql("""
+             SELECT
+                 snapshot_id,
+                 committed_at,
+                 parent_id,
+                 operation
+             FROM local.demo.customers.snapshots
+             ORDER BY committed_at
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/52c1f163-a63f-401a-94ff-c554489e077b)
+
+* Revertir la rama principal a una instantánea específica.
+
+Código:
+
+            # Roll back the main branch to a specific snapshot
+             spark.sql("""
+             CALL local.system.rollback_to_snapshot(
+                 'demo.customers',
+                 3571994297089221451
+             )
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/43d13d5d-5019-4c95-83c8-f59d79ddd820)
+
+* Actualiza la rama principal a la rama de prueba
+
+Código:
+
+            # Fast-forward the main branch to the test branch
+            
+             spark.sql("""
+             CALL local.system.fast_forward(
+                 'demo.customers',
+                 'main',
+                 'test_branch'
+             )
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/7160afc2-91da-4988-bbfe-ffca5ee3b9ed)
+
+* Verificar la tabla de referencia
+
+Código:
+
+            # Inspect the table reference
+            spark.sql("""
+            SELECT *
+            FROM local.demo.customers.refs
+            """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/1d04f746-c3f6-420f-9f85-5ce55a47410e)
+
+* Consultar el estado actual de la tabla.
+
+Código:
+
+            # Query the current state of the table
+             spark.sql("""
+             SELECT *
+             FROM local.demo.customers
+             """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/0ae2cd23-9f54-4fce-a2eb-9e83acfdcc73)
+
+Aquí podemos observar que se elimino el cliente con Id = 3.
+
+
+* Crear una etiqueta desde una instancia especifica.
+
+Código:
+
+            # Create a tag from a specific snapshot
+             spark.sql("""
+             ALTER TABLE local.demo.customers
+             CREATE TAG release_v1
+             AS OF VERSION 2036410356086388718
+             """)
+
+
+  ![image](https://github.com/user-attachments/assets/a75d9182-389c-4cd1-b30a-f24d392efa72)
+
+* Consultar la tabla usando la etiqueta release_v1.
+
+Código:
+
+            spark.sql("""
+            SELECT *
+            FROM local.demo.customers
+            VERSION AS OF 'release_v1'
+            """).show(truncate=False)
+
+
+  ![image](https://github.com/user-attachments/assets/e41ac43b-48ea-4de6-8446-c54565490862)
+
+  
+
+ 
